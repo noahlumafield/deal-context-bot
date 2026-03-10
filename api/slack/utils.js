@@ -13,14 +13,19 @@ export function getRedis() {
   if (!redisUrl) {
     throw new Error("Missing deal_summarizer_bot_REDIS_URL environment variable");
   }
+  // If the cached instance is dead, discard it so we create a fresh one
+  if (redisInstance && redisInstance.status === "end") {
+    console.warn("[utils Redis] connection was closed, reconnecting...");
+    redisInstance = null;
+  }
   if (!redisInstance) {
     redisInstance = new Redis(redisUrl, {
       connectTimeout: 5000,
-      maxRetriesPerRequest: 1,
+      maxRetriesPerRequest: 2,
       enableReadyCheck: true,
       retryStrategy(times) {
-        if (times > 1) return null;
-        return 1000;
+        if (times > 3) return null;
+        return Math.min(times * 500, 2000);
       },
     });
     redisInstance.on("error", (err) => {
@@ -53,7 +58,7 @@ let _cachedSlackBotToken = null;
 let _cachedSlackBotTokenExpiresAt = 0;
 const SLACK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function withTimeout(promise, ms, message) {
+export function withTimeout(promise, ms, message) {
   return Promise.race([
     promise,
     new Promise((_, reject) =>

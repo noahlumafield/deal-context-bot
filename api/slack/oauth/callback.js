@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getRedis } from "../utils.js";
+import { getRedis, withTimeout } from "../utils.js";
 
 const SLACK_TIMEOUT_MS = 10000;
 
@@ -57,11 +57,15 @@ export default async function handler(req, res) {
       const expiresAtMs = Date.now() + expiresIn * 1000;
 
       const redis = getRedis();
-      await redis.set("slack:access_token", accessToken);
-      await redis.set("slack:expires_at_ms", String(expiresAtMs));
-      if (refreshToken) {
-        await redis.set("slack:refresh_token", refreshToken);
-      }
+      await withTimeout(
+        Promise.all([
+          redis.set("slack:access_token", accessToken),
+          redis.set("slack:expires_at_ms", String(expiresAtMs)),
+          ...(refreshToken ? [redis.set("slack:refresh_token", refreshToken)] : []),
+        ]),
+        5000,
+        "Redis write timeout — could not store Slack tokens. Check Redis connectivity."
+      );
     } catch (err) {
       console.error("Slack OAuth token exchange error:", err);
       return res.status(500).send(
