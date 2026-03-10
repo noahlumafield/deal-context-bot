@@ -41,7 +41,7 @@ async function postToResponseUrl(responseUrl, text, replaceOriginal = false) {
   }
 }
 
-function buildPromptFromHubSpotData({ dealName, hubspotDealUrl, ownerLine, csmLine, created, closed, cycleDays, contactsLine, companyLine, amount, dealType, dealStage, pipelineName, description, lineItems, timeline }) {
+function buildPromptFromHubSpotData({ dealName, hubspotDealUrl, ownerLine, csmLine, created, closed, cycleDays, contactsLine, companyLine, amount, dealType, dealStage, pipelineName, description, productDescription, isTrial, lineItems, timeline }) {
   const instructions = `
 You are writing a deal handoff document for post-sales teams (Deployments, Customer Success, and Training) who are taking over from Sales. The audience has ZERO prior context on this deal — they need to understand who the customer is, what happened during the sales process, and what to watch out for.
 
@@ -92,6 +92,8 @@ HubSpot Deal Data:
 - Company: ${companyLine || "Not found in HubSpot records"}
 - Contacts: ${contactsLine}
 ${description ? `- Description: ${description}` : ""}
+${productDescription ? `- Product: ${productDescription}` : ""}
+${isTrial != null ? `- Trial: ${isTrial}` : ""}
 ${lineItems ? `- Products/Line Items:\n${lineItems}` : "- Products/Line Items: None found in HubSpot records"}
 
 Activity Timeline (most recent first):
@@ -234,6 +236,11 @@ export default async function handler(req, res) {
         const dealStage = deal.properties?.dealstage || null;
         const pipelineName = deal.properties?.pipeline || null;
         const description = deal.properties?.description || null;
+        const productLine = deal.properties?.product_line || null;
+        const sourceConfig = deal.properties?.source_configuration || null;
+        const productDescription = [sourceConfig, productLine].filter(Boolean).join(" ") || null;
+        const trialRaw = deal.properties?.is_this_a_trial_ || null;
+        const isTrial = trialRaw ? (trialRaw.toLowerCase() === "true" || trialRaw.toLowerCase() === "yes" ? "Yes" : "No") : null;
 
         const prompt = buildPromptFromHubSpotData({
           dealName,
@@ -250,6 +257,8 @@ export default async function handler(req, res) {
           dealStage,
           pipelineName,
           description,
+          productDescription,
+          isTrial,
           lineItems,
           timeline
         });
