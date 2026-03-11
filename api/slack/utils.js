@@ -339,6 +339,103 @@ export function isBotMessage(message) {
   );
 }
 
+export function isRocketlaneMessage(message) {
+  if (!isBotMessage(message)) return false;
+  const name = (message?.username || message?.bot_profile?.name || "").toLowerCase();
+  if (name.includes("rocketlane")) return true;
+  // Fallback: check message text for Rocketlane task patterns
+  const text = (message?.text || "").toLowerCase();
+  return text.includes("messaged on the task") || text.includes("rocketlane");
+}
+
+// ===== Regulatory Form Detection =====
+
+const REGULATORY_FORM_PATTERNS = [
+  /\behs\b/i,
+  /\bregulatory\s*(form|requirement|acknowledgement|doc|document)\b/i,
+  /\behs\s*(and\s*)?regulatory/i,
+  /\bregulatory\s*acknowledgement/i,
+  /\bclient\s*ehs/i,
+  /\bpdt\s*acknowledgement/i,
+  /\behs.*form/i,
+  /\bregulatory.*form/i,
+];
+
+export function isRegulatoryFormQuestion(question) {
+  return REGULATORY_FORM_PATTERNS.some((pattern) => pattern.test(question || ""));
+}
+
+const ROCKETLANE_EHS_PATTERN = /ehs|regulatory.*requirement|regulatory.*acknowledgement/i;
+const ASSET_URL_PATTERN = /https?:\/\/[^\s>|]+\.pdf|https?:\/\/assets\.rocketlane\.com\/[^\s>|]+/i;
+
+export function findRocketlaneFormMessage(messages) {
+  if (!messages || !messages.length) return null;
+
+  for (const msg of messages) {
+    if (!isBotMessage(msg)) continue;
+    if (!ROCKETLANE_EHS_PATTERN.test(msg.text || "")) continue;
+
+    // Found a candidate — extract the file/asset URL
+    let fileUrl = null;
+
+    // Check msg.text for URLs (Slack formats as <url|label> or <url>)
+    const textMatch = (msg.text || "").match(ASSET_URL_PATTERN);
+    if (textMatch) {
+      fileUrl = textMatch[0].replace(/[>|].*$/, "");
+    }
+
+    // Check attachments
+    if (!fileUrl && msg.attachments) {
+      for (const att of msg.attachments) {
+        const fields = [att.title_link, att.text, att.fallback, att.from_url, att.original_url]
+          .filter(Boolean)
+          .join(" ");
+        const attMatch = fields.match(ASSET_URL_PATTERN);
+        if (attMatch) {
+          fileUrl = attMatch[0].replace(/[>|].*$/, "");
+          break;
+        }
+      }
+    }
+
+    // Check files
+    if (!fileUrl && msg.files) {
+      for (const file of msg.files) {
+        const fields = [file.url_private, file.permalink, file.url_private_download]
+          .filter(Boolean)
+          .join(" ");
+        const fileMatch = fields.match(ASSET_URL_PATTERN);
+        if (fileMatch) {
+          fileUrl = fileMatch[0];
+          break;
+        }
+      }
+    }
+
+    return { ts: msg.ts, text: msg.text, fileUrl };
+  }
+
+  return null;
+}
+
+export async function getMessagePermalink(channel_id, message_ts) {
+  const token = await getSlackBotToken();
+  if (!token) return null;
+  try {
+    const resp = await axios.get("https://slack.com/api/chat.getPermalink", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { channel: channel_id, message_ts },
+      timeout: SLACK_TIMEOUT_MS,
+    });
+    if (resp.data?.ok) return resp.data.permalink;
+    console.error("[getMessagePermalink] error:", resp.data?.error);
+    return null;
+  } catch (err) {
+    console.error("[getMessagePermalink] request failed:", err.message);
+    return null;
+  }
+}
+
 // ===== Channel Name to Deal Query =====
 
 export function channelNameToDealQuery(channelName) {

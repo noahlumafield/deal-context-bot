@@ -12,6 +12,10 @@ import {
   getBotUserId,
   extractQuestionFromMention,
   isBotMessage,
+  isRocketlaneMessage,
+  isRegulatoryFormQuestion,
+  findRocketlaneFormMessage,
+  getMessagePermalink,
   channelNameToDealQuery,
   storeThreadContext,
   getThreadContext,
@@ -146,11 +150,36 @@ async function handleAppMention(event) {
       return;
     }
 
+    // ── Regulatory form shortcut (runs before filtering) ──
+    if (isRegulatoryFormQuestion(question) && rawChannelHistory) {
+      const formMessage = findRocketlaneFormMessage(rawChannelHistory);
+      if (formMessage) {
+        const permalink = await getMessagePermalink(channel_id, formMessage.ts);
+        let response = "";
+        if (formMessage.fileUrl) {
+          response = `Here's the EHS & Regulatory Acknowledgement form:\n${formMessage.fileUrl}`;
+        }
+        if (permalink) {
+          response += (response ? "\n\n" : "") + `Original Rocketlane message: ${permalink}`;
+        }
+        if (!formMessage.fileUrl && !permalink) {
+          response = "I found a Rocketlane message about the EHS form in this channel, but couldn't extract the file link. Try scrolling back to find it.";
+        }
+        await slackPost(channel_id, response, thread_ts);
+        return;
+      }
+      // Not found — fall through to normal Q&A flow
+    }
+
+    // Filter channel history: keep Rocketlane bot messages, exclude other bots and DeCo's own messages
     let channelHistory = null;
     if (rawChannelHistory) {
-      channelHistory = rawChannelHistory.filter(
-        (msg) => !isBotMessage(msg) && !msg.subtype && msg.text
-      );
+      channelHistory = rawChannelHistory.filter((msg) => {
+        if (msg.user === botUserId) return false;
+        if (isBotMessage(msg) && !isRocketlaneMessage(msg)) return false;
+        if (msg.subtype && !isBotMessage(msg)) return false;
+        return !!msg.text;
+      });
     }
 
     const dealId = deal.id;
