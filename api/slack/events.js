@@ -187,13 +187,6 @@ async function handleAppMention(event) {
     // Filter channel history: keep Rocketlane bot messages, exclude other bots and DeCo's own messages
     let channelHistory = null;
     if (rawChannelHistory) {
-      // DEBUG: Log full structure of Rocketlane messages to find where form data lives
-      for (const msg of rawChannelHistory) {
-        if (isRocketlaneMessage(msg)) {
-          console.log("[DEBUG-ROCKETLANE] Full message object:", JSON.stringify(msg, null, 2));
-        }
-      }
-
       channelHistory = rawChannelHistory.filter((msg) => {
         if (msg.user === botUserId) return false;
         if (isBotMessage(msg) && !isRocketlaneMessage(msg)) return false;

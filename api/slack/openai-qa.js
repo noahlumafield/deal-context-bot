@@ -122,7 +122,29 @@ export function buildQAPrompt({ question, dealData, threadContext, hubspotData, 
         // Include attachment text (Rocketlane forms, rich messages, etc.)
         if (msg.attachments && msg.attachments.length > 0) {
           const attText = msg.attachments
-            .map((att) => att.text || att.fallback || "")
+            .map((att) => {
+              // Direct text on the attachment (standard rich messages)
+              if (att.text) return att.text;
+              // Nested blocks inside the attachment (Rocketlane forms store Q&A here)
+              if (att.blocks && att.blocks.length > 0) {
+                return att.blocks
+                  .map((block) => {
+                    if (block.elements) {
+                      return block.elements
+                        .filter((el) => el.type === "mrkdwn" || el.type === "plain_text")
+                        .map((el) => el.text)
+                        .filter(Boolean)
+                        .join("\n");
+                    }
+                    if (block.text?.text) return block.text.text;
+                    if (block.fields) return block.fields.map((f) => f.text).filter(Boolean).join(" | ");
+                    return "";
+                  })
+                  .filter(Boolean)
+                  .join("\n");
+              }
+              return att.fallback || "";
+            })
             .filter(Boolean)
             .join("\n");
           if (attText) text += "\n" + attText;
