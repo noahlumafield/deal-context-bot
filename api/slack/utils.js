@@ -343,9 +343,13 @@ export function isRocketlaneMessage(message) {
   if (!isBotMessage(message)) return false;
   const name = (message?.username || message?.bot_profile?.name || "").toLowerCase();
   if (name.includes("rocketlane")) return true;
-  // Fallback: check message text for Rocketlane task patterns
+  // Fallback: check message text for Rocketlane patterns
   const text = (message?.text || "").toLowerCase();
-  return text.includes("messaged on the task") || text.includes("rocketlane");
+  return (
+    text.includes("messaged on the task") ||
+    text.includes("submitted a form response") ||
+    text.includes("rocketlane")
+  );
 }
 
 // ===== Regulatory Form Detection =====
