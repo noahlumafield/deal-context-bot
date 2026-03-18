@@ -44,82 +44,80 @@ async function postToResponseUrl(responseUrl, text, replaceOriginal = false) {
   }
 }
 
-function buildDeploymentPlanPrompt({ dealName, hubspotDealUrl, ownerLine, csmLine, created, closed, cycleDays, contactsLine, companyLine, amount, dealType, dealStage, pipelineName, description, lineItems, timeline, channelHistoryText }) {
+function buildDeploymentPlanPrompt({ dealName, hubspotDealUrl, ownerLine, csmLine, created, closed, cycleDays, contactsLine, companyLine, amount, dealType, dealStage, pipelineName, description, productDescription, isTrial, lineItems, timeline, channelHistoryText }) {
   const instructions = `
-You are generating a deployment plan summary for a post-sales team (Deployments, Customer Success, Training). Extract specific deployment details from the HubSpot deal data and Slack channel history below.
+You are generating a deployment plan summary for a post-sales team (Deployments, Customer Success, Training). Extract specific deployment details from the HubSpot deal data and Slack channel history below. Be concise — omit filler, avoid restating obvious facts, and do not repeat information across sections.
 
 Deal: "${dealName}"
 Deal link: ${hubspotDealUrl}
 
 OUTPUT FORMAT:
-Use Slack mrkdwn formatting (*bold* for section headers and field labels). Only include sections where you found actual data — do NOT output sections with "TBD", "Not found", or "Unknown". Omit the section entirely if the data isn't available.
+Use Slack mrkdwn formatting (*bold* for section headers and field labels). Only include sections where you found actual data — do NOT output sections with "TBD", "Not found", or "Unknown". Omit the section entirely if the data isn't available. Keep each section tight — 1-2 lines per bullet where possible.
 
 *Deployment Plan: ${dealName}*
 ${hubspotDealUrl}
 
 *Where Things Stand*
-Write 2-4 sentences summarizing the current state of the deployment: what's been scheduled, what's confirmed vs proposed, and what's still outstanding. This should read like a briefing, not a list.
+2-3 sentences max. What's confirmed, what's proposed, what's still open. Read like a quick briefing.
 
 *What Was Sold*
-Product(s) and deal type. Use line items as ground truth.
+- *Product:* [use the Product field below as ground truth — e.g. "130kV Neptune"]
+- *Deal Type:* [new business / renewal / etc.]${isTrial ? `\n- *Trial:* ${isTrial}` : ""}
 
 *Rigging & Uncrating*
 - *Date:* [date]
-- *Performed by:* [Lumafield-hired riggers / customer's own team / third-party — only report what the emails say]
-- *Notes:* [crate storage/return decision if discussed; any coordination details]
+- *Performed by:* [who — if Lumafield-arranged, note that costs are passed to the customer]
+- *Notes:* [crate storage/return decision only if unresolved; omit if nothing outstanding]
 
 *Install Details*
 - *Status:* Confirmed / Proposed (pending customer confirmation)
-- *Install Date(s):* [date(s) — installation can span up to 3 days]
+- *Install Date(s):* [date(s)]
 - *FSE:* [name]
 - *Location:* [facility name + full address — use Rocketlane Facility Info form as primary source]
-- *Scanner Type:* [from line items]
-- *Compute Type:* [Cloud / GovCloud / On Prem / Air Gapped On Prem — deduce from email context if not stated explicitly]
-- *Calibration:* [Fast Cal/Cal2 or Cal 3 — Cal 3 is for metrology/GD&T/high-precision applications; Fast Cal/Cal2 is standard]
+- *Compute Type:* [Cloud / GovCloud / On Prem / Air Gapped — deduce from emails if not explicit]
+- *Calibration:* [Fast Cal/Cal2 or Cal 3 — Cal 3 is for metrology/GD&T; omit if not mentioned]
 
 *Training*
 - *Status:* Confirmed / Proposed (pending customer confirmation)
-- *Training Date(s):* [date(s) — training can span up to 2 days]
+- *Training Date(s):* [date(s)]
 - *Enablement Engineer:* [name]
-- *Others Attending Onsite:* [any other Lumafield staff attending — only if mentioned]
+- *Others Attending Onsite:* [only if mentioned]
 
 *Team*
 - *Sales Owner:* ${ownerLine}
 - *CSM:* [name] — Scoping call: [Scheduled for X / Not yet scheduled]
-- *FSE:* [name]
-- *Enablement Engineer:* [name]
 
 *Pending & Open Items*
-Bullet list of anything explicitly unconfirmed or awaiting action — e.g. customer confirmation of dates, crate storage/return decision, CSM scoping call not yet scheduled, site readiness items.
+Short bullets only — items explicitly unconfirmed or awaiting action.
 
 *Notable Context*
-Any special requirements, IT/power/network needs, access or shipping considerations, or other context the deployment team should know.
+Only include things that would genuinely surprise or matter to someone walking into this deployment cold — unusual deal circumstances, discrepancies between what was signed and what's now expected, special IT/power/access requirements, or other non-obvious context. Do NOT include: standard facility specs (assume the facility is suitable if we're installing there), forklift/loading dock details (covered in Rigging), or items already listed in Pending & Open Items.
 
 DATA EXTRACTION RULES:
 - Read the FULL email timeline — scheduling evolves over 20-30+ emails. The most recent confirmed schedule supersedes earlier proposals.
-- Scheduling emails often include a summary bullet list at the end (e.g., "Here is a summary of the proposed schedule") — prioritize these for dates.
-- "Proposed" = Lumafield sent proposed dates, customer has not yet explicitly confirmed. "Confirmed" = customer replied affirmatively, or subsequent emails treat the dates as set.
-- Rigging/uncrating can be Lumafield-hired riggers, the customer's own team, or a third party — only report what the emails say.
-- Compute type can often be deduced from email context (e.g., mentions of GovCloud, on-prem installation steps, air-gapped requirements, or cloud setup).
-- Calibration type: Cal 3 is for metrology-level applications, GD&T, or high-precision dimensional measurement. Fast Cal/Cal2 is standard. Look for mentions of these terms or application types in emails and notes.
-- Forklift/loading dock attestations from the Facility Info form are only relevant if no rigging arrangement has been confirmed. If emails already establish that professional riggers (customer-hired, Lumafield-hired, or third-party) are handling delivery and uncrating, do NOT flag the forklift or loading dock situation as a rigging concern — it is already handled. Only note a forklift/dock issue if rigging is unresolved OR if the customer is attempting to self-handle delivery without professional riggers and their equipment may be insufficient.
-- The CSM is often introduced in a scheduling email. Note whether their scoping call has been scheduled.
-- Crate storage/return decision (keep onsite, ship back, or warehouse storage) is a common open item — flag it if unresolved.
-- IT/network configuration: look for emails or notes about firewall rules, network requirements, VPN access, static IP setup, or IT readiness. If the customer has been asked to confirm they can meet these requirements and has not yet replied, flag it as a Pending & Open Item.
-- Install address: use the Rocketlane Facility Info form from channel history as the primary source. If the same form was submitted multiple times (e.g., customer resubmitted the Facility Information form), always use the MOST RECENT submission — channel history is ordered newest-first, so earlier entries in the list are more recent.
-- Look for Rocketlane, Jira, or Google Sheets project links mentioned in the channel.
+- Scheduling emails often include a summary bullet list at the end — prioritize these for dates.
+- "Proposed" = Lumafield sent proposed dates, customer has not explicitly confirmed. "Confirmed" = customer replied affirmatively or subsequent emails treat dates as set.
+- Rigging/uncrating can be Lumafield-arranged, customer's own team, or third-party — only report what emails say. If Lumafield arranges riggers, note that costs are passed to the customer.
+- Compute type can often be deduced from email context (GovCloud, on-prem steps, air-gapped requirements, or cloud setup).
+- Calibration: Cal 3 is for metrology-level/GD&T/high-precision applications. Fast Cal/Cal2 is standard. Only include if mentioned.
+- Forklift/loading dock attestations are only relevant if rigging is unresolved. If professional riggers are already arranged, do NOT flag facility equipment as a concern.
+- CSM: Use the HubSpot company record value first. If it shows "Not assigned," search the email timeline for a Lumafield team member who introduces themselves as a Customer Success Manager or CSM, or is introduced as one — they are commonly cc'd or named in scheduling emails.
+- Crate storage/return decision is a common open item — flag it only if unresolved.
+- IT/network configuration: if the customer has been asked to confirm requirements and hasn't replied, flag as Pending & Open.
+- Install address: use the Rocketlane Facility Info form as primary source. If submitted multiple times, use the MOST RECENT (channel history is newest-first).
+- Trial status: if the HubSpot deal shows one trial status but emails or Slack suggest the deal is being renegotiated or converted to/from a trial, flag this discrepancy in Notable Context.
 - Use BOTH HubSpot emails and Slack channel history as sources.
-- CRITICAL: Use structured deal data (line items, amount, deal type) as ground truth for what was sold. Do NOT infer product names from email content.
-- Do not invent information. Only include details found in the data provided below.
+- CRITICAL: The Product field below is ground truth for what was sold. Do NOT infer product names from email content.
+- Do not invent information. Only include details found in the data provided.
 
 HubSpot Deal Data:
 - Deal: ${dealName}
 - Sales Owner: ${ownerLine}
 - CSM: ${csmLine}
-- Amount: ${amount || "Not available"}
+- Product: ${productDescription || "See line items below"}
+- Trial: ${isTrial || "Not specified"}
 - Deal Type: ${dealType || "Not available"}
 - Deal Stage: ${dealStage || "Not available"}
-- Pipeline: ${pipelineName || "Not available"}
 - Created: ${created || "Not available"}
 - Closed: ${closed || "Not available"}${cycleDays != null ? ` (${cycleDays}-day cycle)` : ""}
 - Company: ${companyLine || "Not available"}
@@ -320,6 +318,15 @@ export default async function handler(req, res) {
         const pipelineName = deal.properties?.pipeline || null;
         const description = deal.properties?.description || null;
 
+        // Custom deal properties for product and trial status
+        const sourceConfig = deal.properties?.source_configuration || null;
+        const productLine = deal.properties?.product_line || null;
+        const productDescription = [sourceConfig, productLine].filter(Boolean).join(" ") || null;
+        const isTrialRaw = deal.properties?.is_this_a_trial_ || null;
+        const isTrial = isTrialRaw
+          ? (isTrialRaw.toLowerCase().includes("yes") || isTrialRaw === "true" ? "Yes" : "No")
+          : null;
+
         const prompt = buildDeploymentPlanPrompt({
           dealName,
           hubspotDealUrl,
@@ -335,6 +342,8 @@ export default async function handler(req, res) {
           dealStage,
           pipelineName,
           description,
+          productDescription,
+          isTrial,
           lineItems,
           timeline,
           channelHistoryText
