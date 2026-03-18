@@ -57,55 +57,56 @@ Use Slack mrkdwn formatting (*bold* for section headers and field labels). Only 
 *Deployment Plan: ${dealName}*
 ${hubspotDealUrl}
 
+*Where Things Stand*
+Write 2-4 sentences summarizing the current state of the deployment: what's been scheduled, what's confirmed vs proposed, and what's still outstanding. This should read like a briefing, not a list.
+
 *What Was Sold*
-Product(s), deal amount, deal type. Use line items as ground truth for what was sold.
+Product(s) and deal type. Use line items as ground truth.
 
 *Rigging & Uncrating*
 - *Date:* [date]
-- *Performed by:* [Lumafield-hired riggers / customer's own team / third-party — only report what the emails say; do not assume]
+- *Performed by:* [Lumafield-hired riggers / customer's own team / third-party — only report what the emails say]
 - *Notes:* [crate storage/return decision if discussed; any coordination details]
 
 *Install Details*
 - *Status:* Confirmed / Proposed (pending customer confirmation)
-- *Install Date:* [date(s)]
-- *Installer / FSE:* [name — Field Service Engineer]
+- *Install Date(s):* [date(s) — installation can span up to 3 days]
+- *FSE:* [name]
 - *Location:* [facility name + full address — use Rocketlane Facility Info form as primary source]
 - *Scanner Type:* [from line items]
-- *Compute Type:* [Cloud / GovCloud / On Prem / Air Gapped On Prem — look for these exact terms]
+- *Compute Type:* [Cloud / GovCloud / On Prem / Air Gapped On Prem — deduce from email context if not stated explicitly]
+- *Calibration:* [Fast Cal/Cal2 or Cal 3 — Cal 3 is for metrology/GD&T/high-precision applications; Fast Cal/Cal2 is standard]
 
 *Training*
 - *Status:* Confirmed / Proposed (pending customer confirmation)
-- *Training Date:* [date(s)]
-- *Trainer:* [name, role e.g. Enablement Engineer]
-- *Others Attending Onsite:* [any other Lumafield staff mentioned as attending]
-- *Training Format:* Onsite / Remote
-- *Training Scope:* [e.g. "Full: radiation awareness + hardware + software" or "Software only for some attendees" — only if mentioned]
+- *Training Date(s):* [date(s) — training can span up to 2 days]
+- *Enablement Engineer:* [name]
+- *Others Attending Onsite:* [any other Lumafield staff attending — only if mentioned]
 
 *Team*
 - *Sales Owner:* ${ownerLine}
 - *CSM:* [name] — Scoping call: [Scheduled for X / Not yet scheduled]
-- *FSE (Installer):* [name]
-- *Trainer:* [name]
-- *Logistics Coordinator:* [name, if mentioned]
-- *Key Customer Contacts:* ${contactsLine}
+- *FSE:* [name]
+- *Enablement Engineer:* [name]
 
 *Pending & Open Items*
-List anything explicitly unconfirmed or awaiting action, such as: customer confirmation of dates, crate storage/return decision, CSM scoping call not yet scheduled, site readiness items, etc.
+Bullet list of anything explicitly unconfirmed or awaiting action — e.g. customer confirmation of dates, crate storage/return decision, CSM scoping call not yet scheduled, site readiness items.
 
 *Notable Context*
-Any special requirements, IT/power/network coordination needs, access or shipping considerations, or other context the deployment team should know.
+Any special requirements, IT/power/network needs, access or shipping considerations, or other context the deployment team should know.
 
 DATA EXTRACTION RULES:
-- Read the FULL email timeline — scheduling details evolve over 20-30+ emails. The most recent confirmed schedule supersedes earlier proposals.
+- Read the FULL email timeline — scheduling evolves over 20-30+ emails. The most recent confirmed schedule supersedes earlier proposals.
 - Scheduling emails often include a summary bullet list at the end (e.g., "Here is a summary of the proposed schedule") — prioritize these for dates.
 - "Proposed" = Lumafield sent proposed dates, customer has not yet explicitly confirmed. "Confirmed" = customer replied affirmatively, or subsequent emails treat the dates as set.
-- Rigging/uncrating can be done by Lumafield-hired riggers, the customer's own team, or a third party — only report what the emails say.
-- The CSM is often formally introduced in a scheduling email. Note whether their scoping call has been scheduled.
-- Crate storage/return decision (keep onsite, ship back to Lumafield, or warehouse storage) is a common open item — flag it if unresolved.
-- Training scope varies: some attendees need full training (radiation awareness + hardware + software), others only software — note this if mentioned.
-- Install address: use the Rocketlane Facility Info form from the Slack channel as the primary source. The form content appears in Slack channel history as a bot message.
+- Rigging/uncrating can be Lumafield-hired riggers, the customer's own team, or a third party — only report what the emails say.
+- Compute type can often be deduced from email context (e.g., mentions of GovCloud, on-prem installation steps, air-gapped requirements, or cloud setup).
+- Calibration type: Cal 3 is for metrology-level applications, GD&T, or high-precision dimensional measurement. Fast Cal/Cal2 is standard. Look for mentions of these terms or application types in emails and notes.
+- The CSM is often introduced in a scheduling email. Note whether their scoping call has been scheduled.
+- Crate storage/return decision (keep onsite, ship back, or warehouse storage) is a common open item — flag it if unresolved.
+- Install address: use the Rocketlane Facility Info form from channel history as the primary source.
 - Look for Rocketlane, Jira, or Google Sheets project links mentioned in the channel.
-- Use BOTH HubSpot emails and Slack channel history as sources for deployment logistics.
+- Use BOTH HubSpot emails and Slack channel history as sources.
 - CRITICAL: Use structured deal data (line items, amount, deal type) as ground truth for what was sold. Do NOT infer product names from email content.
 - Do not invent information. Only include details found in the data provided below.
 
