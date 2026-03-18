@@ -85,7 +85,7 @@ ${hubspotDealUrl}
 
 *Team*
 - *Sales Owner:* ${ownerLine}
-- *CSM:* [name] — Scoping call: [Scheduled for X / Not yet scheduled]
+- *CSM:* [name — see CSM rule below] — Scoping call: [Scheduled for X / Not yet scheduled]
 
 *Pending & Open Items*
 Short bullets only — items explicitly unconfirmed or awaiting action.
@@ -101,7 +101,7 @@ DATA EXTRACTION RULES:
 - Compute type can often be deduced from email context (GovCloud, on-prem steps, air-gapped requirements, or cloud setup).
 - Calibration: Cal 3 is for metrology-level/GD&T/high-precision applications. Fast Cal/Cal2 is standard. Only include if mentioned.
 - Forklift/loading dock attestations are only relevant if rigging is unresolved. If professional riggers are already arranged, do NOT flag facility equipment as a concern.
-- CSM: Use the HubSpot company record value first. If it shows "Not assigned," search the email timeline for a Lumafield team member who introduces themselves as a Customer Success Manager or CSM, or is introduced as one — they are commonly cc'd or named in scheduling emails.
+- CSM RULE (IMPORTANT): The HubSpot company record CSM field is often blank. ALWAYS scan the email timeline for the CSM regardless of whether the company record has a value. Look for: emails where someone introduces themselves as the customer's Customer Success Manager or CSM, emails with subjects like "Intro", "Meet your CSM", "Introduction", or similar, or emails where the sales rep introduces a colleague in a post-sales context. The CSM is distinct from the Sales Owner (${ownerLine}), FSE, and Enablement Engineer — they are the ongoing customer relationship owner after the deal closes. If found in emails, use that name even if the HubSpot field shows "Not assigned."
 - Crate storage/return decision is a common open item — flag it only if unresolved.
 - IT/network configuration: if the customer has been asked to confirm requirements and hasn't replied, flag as Pending & Open.
 - Install address: use the Rocketlane Facility Info form as primary source. If submitted multiple times, use the MOST RECENT (channel history is newest-first).
@@ -307,7 +307,7 @@ export default async function handler(req, res) {
           : "Not found in HubSpot records";
 
         // ── Phase 4: Build timeline + prompt + OpenAI ──
-        const timeline = formatTimelineForPrompt(emails, calls, meetings, notes, 1500, 60);
+        const timeline = formatTimelineForPrompt(emails, calls, meetings, notes, 2500, 50);
         const lineItems = formatLineItemsForPrompt(lineItemsRaw);
 
         const amount = deal.properties?.amount
