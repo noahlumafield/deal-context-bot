@@ -25,8 +25,8 @@ import {
 } from "./hubspot-data.js";
 import { callOpenAIForQA } from "./openai-qa.js";
 
-// Vercel Hobby plan has a 10s function timeout
-const VERCEL_TIMEOUT_WARNING_MS = 8000;
+// Warn in Slack if summary is taking longer than expected
+const VERCEL_TIMEOUT_WARNING_MS = 25000;
 
 async function postToResponseUrl(responseUrl, text, replaceOriginal = false) {
   if (!responseUrl) return;
@@ -81,6 +81,9 @@ Bullet any unresolved items, blockers, concerns, or risks mentioned anywhere in 
 *Key Technical Details*
 Bullet any technical requirements, integration needs, or configuration details mentioned in emails/meetings/notes. Do NOT repeat the product name or trial status here — those belong in "What Was Sold." If no additional technical details, write "None mentioned in HubSpot records."
 
+*Deployment Location*
+Where the scanner will be physically installed. Look for: facility name, street address, city/state, building or room name, or any description of the install site mentioned anywhere in emails, calls, meetings, or notes. If the customer mentions their facility, lab, plant, or office location, include it here. If no location is mentioned, write "Not found in HubSpot records."
+
 Rules:
 - Be concise but do not omit important details. Aim for completeness over brevity.
 - Every claim must come from the data below. Do not invent or assume facts.
@@ -88,6 +91,7 @@ Rules:
 - Do not dump raw data or field names. Synthesize and summarize.
 - Do not repeat the same information across sections.
 - Bold all names, companies, amounts, and product names with *single asterisks*.
+- For Deployment Location: scan the FULL activity timeline for any mention of the install site — facility name, address, city/state, building/room. Customers often mention it casually ("we're in our Boston facility", "our Austin plant"). Prioritize the most specific mention found.
 
 HubSpot Deal Data:
 - Deal: ${dealName}
@@ -236,7 +240,7 @@ export default async function handler(req, res) {
           : "Not found in HubSpot records";
 
         // ── Phase 4: Build timeline + prompt + OpenAI ──
-        const timeline = formatTimelineForPrompt(emails, calls, meetings, notes);
+        const timeline = formatTimelineForPrompt(emails, calls, meetings, notes, 600, 40);
         const lineItems = formatLineItemsForPrompt(lineItemsRaw);
 
         const amount = deal.properties?.amount
