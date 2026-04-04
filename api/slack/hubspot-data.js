@@ -314,7 +314,7 @@ export function formatTimelineForPrompt(emails, calls, meetings, notes, maxEmail
     const summary = (p.hs_call_summary || "").replace(/\s+/g, " ").trim();
     const body = (p.hs_call_body || "").replace(/\s+/g, " ").trim();
     const callContent = summary || body;
-    const snippet = callContent ? `: ${callContent.substring(0, 400)}` : "";
+    const snippet = callContent ? `: ${callContent.substring(0, 1000)}` : "";
     items.push({
       timestamp: p.hs_timestamp || "0",
       line: `- CALL (${direction}) on ${date} — ${title}${duration ? `, ${duration}` : ""}${disposition ? ` [${disposition}]` : ""}${snippet}`
