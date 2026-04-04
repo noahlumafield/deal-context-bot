@@ -344,7 +344,7 @@ export function formatTimelineForPrompt(emails, calls, meetings, notes, maxEmail
     const body = stripHtml(p.hs_note_body || "").replace(/\s+/g, " ").trim();
     items.push({
       timestamp: p.hs_createdate || "0",
-      line: `- NOTE on ${date}: ${body.substring(0, 800)}`
+      line: `- NOTE on ${date}: ${body.substring(0, 3000)}`
     });
   }
 
