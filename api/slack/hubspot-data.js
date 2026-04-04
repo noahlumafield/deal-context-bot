@@ -311,9 +311,7 @@ export function formatTimelineForPrompt(emails, calls, meetings, notes, maxEmail
       ? `${Math.round(Number(p.hs_call_duration) / 1000 / 60)}min`
       : "";
     const disposition = p.hs_call_disposition || "";
-    const summary = (p.hs_call_summary || "").replace(/\s+/g, " ").trim();
-    const body = (p.hs_call_body || "").replace(/\s+/g, " ").trim();
-    const callContent = summary || body;
+    const callContent = (p.hs_call_summary || p.hs_call_body || "").replace(/\s+/g, " ").trim();
     const snippet = callContent ? `: ${callContent.substring(0, 1000)}` : "";
     items.push({
       timestamp: p.hs_timestamp || "0",

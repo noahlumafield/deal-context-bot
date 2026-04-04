@@ -25,7 +25,6 @@ import {
 } from "./hubspot-data.js";
 import { callOpenAIForQA } from "./openai-qa.js";
 
-
 async function postToResponseUrl(responseUrl, text, replaceOriginal = false) {
   if (!responseUrl) return;
   try {
