@@ -50,6 +50,7 @@ export async function fetchDealCalls(hs, dealId) {
     const calls = await batchRead(hs, "calls", callIds, [
       "hs_call_title",
       "hs_call_body",
+      "hs_call_summary",
       "hs_call_direction",
       "hs_call_duration",
       "hs_call_disposition",
@@ -310,8 +311,10 @@ export function formatTimelineForPrompt(emails, calls, meetings, notes, maxEmail
       ? `${Math.round(Number(p.hs_call_duration) / 1000 / 60)}min`
       : "";
     const disposition = p.hs_call_disposition || "";
+    const summary = (p.hs_call_summary || "").replace(/\s+/g, " ").trim();
     const body = (p.hs_call_body || "").replace(/\s+/g, " ").trim();
-    const snippet = body ? `: ${body.substring(0, 200)}` : "";
+    const callContent = summary || body;
+    const snippet = callContent ? `: ${callContent.substring(0, 400)}` : "";
     items.push({
       timestamp: p.hs_timestamp || "0",
       line: `- CALL (${direction}) on ${date} — ${title}${duration ? `, ${duration}` : ""}${disposition ? ` [${disposition}]` : ""}${snippet}`
