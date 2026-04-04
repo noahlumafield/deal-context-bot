@@ -25,8 +25,6 @@ import {
 } from "./hubspot-data.js";
 import { callOpenAIForQA } from "./openai-qa.js";
 
-// Warn in Slack if summary is taking longer than expected
-const VERCEL_TIMEOUT_WARNING_MS = 25000;
 
 async function postToResponseUrl(responseUrl, text, replaceOriginal = false) {
   if (!responseUrl) return;
@@ -139,22 +137,6 @@ export default async function handler(req, res) {
     response_type: "ephemeral",
     text: "Generating deal summary... (this may take a moment)"
   });
-
-  // Keep function alive until work completes (Vercel would otherwise stop after res.json)
-  // Set a timer to warn via response_url if we're approaching the Vercel Hobby timeout
-  let summaryFinished = false;
-  const timeoutWarning = setTimeout(async () => {
-    if (!summaryFinished && response_url) {
-      console.warn("[/summary] approaching Vercel timeout, posting warning");
-      await postToResponseUrl(
-        response_url,
-        "Still generating the summary, but it's taking longer than expected. " +
-        "If you don't see a response shortly, the Vercel function may have timed out (10s limit on Hobby plan). " +
-        "Try running /summary again.",
-        false
-      );
-    }
-  }, VERCEL_TIMEOUT_WARNING_MS);
 
   waitUntil(
     (async () => {
@@ -279,12 +261,8 @@ export default async function handler(req, res) {
 
         const summaryText = await callOpenAIForQA(prompt);
         await slackPost(channel_id, summaryText);
-        summaryFinished = true;
-        clearTimeout(timeoutWarning);
         await postToResponseUrl(response_url, `Posted deal summary to #${channelName}.`, true);
       } catch (err) {
-        summaryFinished = true;
-        clearTimeout(timeoutWarning);
         console.error("/summary error:", err?.message || err, err?.code);
         let msg = err?.response?.data ? JSON.stringify(err.response.data) : (err?.message || "unknown_error");
         if (err?.code === "ETIMEDOUT" || msg.includes("ETIMEDOUT")) {
