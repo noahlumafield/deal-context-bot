@@ -329,7 +329,7 @@ export function formatTimelineForPrompt(emails, calls, meetings, notes, maxEmail
     const title = p.hs_meeting_title || "Meeting";
     const outcome = p.hs_meeting_outcome || "";
     const body = (p.hs_meeting_body || "").replace(/\s+/g, " ").trim();
-    const snippet = body ? `: ${stripHtml(body).substring(0, 200)}` : "";
+    const snippet = body ? `: ${stripHtml(body).substring(0, 3000)}` : "";
     items.push({
       timestamp: p.hs_timestamp || "0",
       line: `- MEETING on ${date} — ${title}${outcome ? ` [${outcome}]` : ""}${snippet}`
