@@ -568,30 +568,75 @@ export function hubspotClient(accessToken) {
   });
 }
 
+const DEAL_PROPERTIES = [
+  "dealname", "createdate", "closedate", "dealstage", "pipeline",
+  "hubspot_owner_id", "amount", "dealtype", "description",
+  "deal_currency_code", "product_line", "source_configuration", "is_this_a_trial_"
+];
+
+async function searchDeals(hs, queryValue) {
+  try {
+    const resp = await hs.post("/crm/v3/objects/deals/search", {
+      filterGroups: [{ filters: [{ propertyName: "dealname", operator: "CONTAINS_TOKEN", value: queryValue }] }],
+      properties: DEAL_PROPERTIES,
+      limit: 10
+    });
+    return resp.data?.results || [];
+  } catch (err) {
+    console.error("[searchDeals] error for query %s:", queryValue, err.message);
+    return [];
+  }
+}
+
+function pickBestResult(results) {
+  return results.sort((a, b) => {
+    const ac = a.properties?.closedate ? Number(new Date(a.properties.closedate)) : 0;
+    const bc = b.properties?.closedate ? Number(new Date(b.properties.closedate)) : 0;
+    return bc - ac;
+  })[0];
+}
+
+function getMeaningfulTokens(query) {
+  return query.split(/\s+/).map(t => t.toLowerCase()).filter(t => t.length >= 4).slice(0, 8);
+}
+
+function scoreDeal(deal, tokens) {
+  const name = (deal.properties?.dealname || "").toLowerCase();
+  return tokens.filter(t => name.includes(t)).length;
+}
+
 export async function findBestDeal(hs, dealQuery) {
-  const body = {
-    filterGroups: [
-      {
-        filters: [
-          { propertyName: "dealname", operator: "CONTAINS_TOKEN", value: dealQuery }
-        ]
+  // Phase 1: full phrase search (works for 99% of deals)
+  const phase1 = await searchDeals(hs, dealQuery);
+  if (phase1.length) return pickBestResult(phase1);
+
+  // Phase 2: token fallback for slugified names with jammed words
+  console.log("[findBestDeal] falling back to token search for:", dealQuery);
+  const tokens = getMeaningfulTokens(dealQuery);
+  if (!tokens.length) return null;
+
+  const tokenResults = await Promise.all(tokens.map(t => searchDeals(hs, t)));
+
+  const seen = new Set();
+  const candidates = [];
+  for (const results of tokenResults) {
+    for (const deal of results) {
+      if (!seen.has(deal.id)) {
+        seen.add(deal.id);
+        candidates.push(deal);
       }
-    ],
-    properties: ["dealname", "createdate", "closedate", "dealstage", "pipeline", "hubspot_owner_id", "amount", "dealtype", "description", "deal_currency_code", "product_line", "source_configuration", "is_this_a_trial_"],
-    limit: 10
-  };
+    }
+  }
+  if (!candidates.length) return null;
 
-  const resp = await hs.post("/crm/v3/objects/deals/search", body);
-  const results = resp.data?.results || [];
-  if (!results.length) return null;
-
-  results.sort((a, b) => {
+  candidates.sort((a, b) => {
+    const scoreDiff = scoreDeal(b, tokens) - scoreDeal(a, tokens);
+    if (scoreDiff !== 0) return scoreDiff;
     const ac = a.properties?.closedate ? Number(new Date(a.properties.closedate)) : 0;
     const bc = b.properties?.closedate ? Number(new Date(b.properties.closedate)) : 0;
     return bc - ac;
   });
-
-  return results[0];
+  return candidates[0];
 }
 
 export async function getDealAssociations(hs, dealId) {
